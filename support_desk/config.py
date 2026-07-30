@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -21,6 +22,7 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_model: str = ""
     approval_arr_threshold: int = 25_000
+    max_action_attempts: int = Field(default=3, ge=1, le=10)
     notification_webhook_url: str = ""
 
     @property

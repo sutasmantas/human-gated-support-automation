@@ -1,47 +1,72 @@
 # Architecture
 
 ```text
-Ticket intake
+typed ticket
     │
     ▼
-structured classification ──> policy selection ──> grounded draft
-    │                                                │
-    └──────────── risk rules ────────────────────────┘
-                             │
-                    human approval gate
-                             │
-              ┌──────────────┼──────────────┐
-              ▼              ▼              ▼
-        billing hold     CRM case event   webhook outbox
+classification ──> policy retrieval ──> grounded draft
+    │                                         │
+    └────────── risk and routing rules ───────┘
+                          │
+                  human decision gate
+                    │            │
+                 reject       approve
+                    │            │
+                    ▼            ▼
+                audit note   action executor
+                                  │
+                 ┌────────────────┼────────────────┐
+                 ▼                ▼                ▼
+            billing hold      CRM event      webhook/outbox
+                 │                │                │
+                 └──────── receipt + attempt ──────┘
+                                  │
+                          complete / retry /
+                            dead-letter
 ```
 
-## Why the approval gate is server-side
+## Server-side control boundary
 
-The browser never executes operational actions. Approval calls one idempotent
-API transition; the server records each adapter result and resolves the ticket
-only after the actions are processed. Refreshing the browser or repeating the
-request cannot create a second hold.
+The browser never performs operational side effects. Approval invokes one API
+transition and the server executes each proposed action. A receipt is written
+after a successful adapter call. Repeating approval or retrying a partial
+failure checks those receipts first, so a completed billing hold or CRM event is
+not repeated.
 
-## Providers
+Rejection is also a state transition rather than a UI-only label. The operator
+note is preserved in the same workflow-event stream used by the run inspector.
 
-- `local` uses transparent rules and templates for a no-key reproducible run.
-- `openai-compatible` requests structured classification and a policy-grounded
-  draft from a configured chat-completions endpoint.
+## Typed providers
 
-Both providers produce the same typed workflow contract. Neither provider can
-apply account changes without approval.
+- `local` uses transparent rules and templates for a reproducible no-key demo.
+- `openai-compatible` requests structured classification and a
+  policy-grounded draft from a configured chat-completions endpoint.
 
-## Persistence
+Both return the same typed workflow contract. Neither has access to the action
+executor.
 
-SQLite stores tickets, policy sources, drafts, action states, billing holds, CRM
-events, and notification outbox records. External notifications use an optional
-webhook; delivery failures remain visible in the outbox.
+## Persistence and execution
 
-## Production additions
+SQLite stores tickets, sources, drafts, action state, attempts, receipts,
+billing holds, CRM events, notification outbox entries and workflow events.
+This makes the entire control path inspectable from the API and UI.
 
-- authentication, tenant and role authorization
-- provider-specific OAuth and secret storage
-- retry/dead-letter processing for webhooks
-- durable worker queue and concurrency controls
-- customer data retention and deletion policies
-- observability, rate limits, and content-safety policy
+The notification adapter either:
+
+- writes a local queued outbox receipt when no webhook is configured;
+- records a delivered receipt after a successful webhook; or
+- preserves the failure and attempt count for retry.
+
+After `SUPPORT_MAX_ACTION_ATTEMPTS`, the case moves to dead-letter review.
+
+## Deployment boundary
+
+The repository deliberately keeps integration adapters small. Production
+deployments still need:
+
+- authentication, tenant and role authorization;
+- provider-specific OAuth and managed secrets;
+- a durable worker queue, locks and concurrency control;
+- metrics, tracing, alerting and rate limits;
+- customer-data retention and deletion controls;
+- organization-specific content and approval policy.

@@ -9,7 +9,7 @@ import httpx
 
 from support_desk.config import Settings
 from support_desk.engine import AutomationResult
-from support_desk.schemas import Action, Source, Stats, Ticket, TicketCreate
+from support_desk.schemas import Action, Source, Stats, Ticket, TicketCreate, WorkflowEvent
 
 
 class TicketStore:
@@ -63,6 +63,29 @@ class TicketStore:
                 delivery_status TEXT NOT NULL,
                 created_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS action_receipts (
+                ticket_id TEXT NOT NULL,
+                action_id TEXT NOT NULL,
+                result TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (ticket_id, action_id)
+            );
+            CREATE TABLE IF NOT EXISTS action_attempts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticket_id TEXT NOT NULL,
+                action_id TEXT NOT NULL,
+                attempt INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                error TEXT,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS workflow_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticket_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                detail TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
             """
         )
         self.connection.commit()
@@ -104,6 +127,12 @@ class TicketStore:
             ),
         )
         self.connection.commit()
+        self._event(
+            ticket_id,
+            "ticket.created",
+            f"Routed to {result.route}",
+            created_at.isoformat(),
+        )
         return self.get(ticket_id)
 
     def list(self) -> list[Ticket]:
@@ -120,40 +149,109 @@ class TicketStore:
         ticket = self.get(ticket_id)
         if ticket.status == "resolved":
             return ticket
+        if ticket.status == "rejected":
+            raise ValueError("A rejected ticket cannot be approved.")
         now = datetime.now(UTC).isoformat()
+        if ticket.approved_at is None:
+            self._event(
+                ticket_id,
+                "approval.approved",
+                "Human reviewer approved the proposed reply and side effects.",
+                now,
+            )
         completed: list[Action] = []
         for action in ticket.actions:
-            result = self._execute_action(ticket, action, now)
-            completed.append(action.model_copy(update={"status": "completed", "result": result}))
+            if action.status == "completed":
+                completed.append(action)
+                continue
+            attempt = action.attempts + 1
+            try:
+                result = self._execute_action(ticket, action, now)
+                self._record_attempt(ticket.id, action.id, attempt, "completed", None, now)
+                completed.append(
+                    action.model_copy(
+                        update={
+                            "status": "completed",
+                            "result": result,
+                            "attempts": attempt,
+                            "last_error": None,
+                        }
+                    )
+                )
+            except httpx.HTTPError as exc:
+                error = f"{type(exc).__name__}: {exc}"
+                self._record_attempt(ticket.id, action.id, attempt, "failed", error, now)
+                completed.append(
+                    action.model_copy(
+                        update={
+                            "status": "failed",
+                            "attempts": attempt,
+                            "last_error": error,
+                        }
+                    )
+                )
+        resolved = all(action.status == "completed" for action in completed)
+        exhausted = any(
+            action.status == "failed"
+            and action.attempts >= self.settings.max_action_attempts
+            for action in completed
+        )
+        new_status = "resolved" if resolved else "dead_letter" if exhausted else "action_failed"
         self.connection.execute(
             """
             UPDATE tickets
-            SET status = 'resolved', actions_json = ?, approved_at = ?
+            SET status = ?, actions_json = ?, approved_at = COALESCE(approved_at, ?)
             WHERE id = ?
             """,
-            (json.dumps([action.model_dump() for action in completed]), now, ticket_id),
+            (
+                new_status,
+                json.dumps([action.model_dump() for action in completed]),
+                now,
+                ticket_id,
+            ),
         )
         self.connection.commit()
+        self._event(
+            ticket_id,
+            (
+                "actions.completed"
+                if resolved
+                else "actions.dead_lettered"
+                if exhausted
+                else "actions.failed"
+            ),
+            "All approved actions completed."
+            if resolved
+            else "The retry budget is exhausted; operator intervention is required."
+            if exhausted
+            else "One or more approved actions require retry.",
+            now,
+        )
         return self.get(ticket_id)
 
     def _execute_action(self, ticket: Ticket, action: Action, now: str) -> str:
+        receipt = self.connection.execute(
+            "SELECT result FROM action_receipts WHERE ticket_id = ? AND action_id = ?",
+            (ticket.id, action.id),
+        ).fetchone()
+        if receipt:
+            return str(receipt["result"])
         if action.kind == "billing_hold":
             self.connection.execute(
                 "INSERT OR REPLACE INTO billing_holds VALUES (?, ?, ?, ?)",
                 (ticket.id, ticket.company, 7, now),
             )
-            return "Seven-day hold recorded"
-        if action.kind == "case_update":
+            result = "Seven-day hold recorded"
+        elif action.kind == "case_update":
             self.connection.execute(
                 "INSERT INTO case_events (ticket_id, event, created_at) VALUES (?, ?, ?)",
-                (ticket.id, "Renewal case updated after approval", now),
+                (ticket.id, f"{action.label} completed after approval", now),
             )
-            return "Case event recorded"
-
-        payload = {"ticket_id": ticket.id, "company": ticket.company, "route": ticket.route}
-        delivery_status = "queued"
-        if self.settings.notification_webhook_url:
-            try:
+            result = "Case event recorded"
+        else:
+            payload = {"ticket_id": ticket.id, "company": ticket.company, "route": ticket.route}
+            delivery_status = "queued"
+            if self.settings.notification_webhook_url:
                 response = httpx.post(
                     self.settings.notification_webhook_url,
                     json=payload,
@@ -161,16 +259,77 @@ class TicketStore:
                 )
                 response.raise_for_status()
                 delivery_status = "delivered"
-            except httpx.HTTPError:
-                delivery_status = "failed"
+            self.connection.execute(
+                """
+                INSERT INTO notification_outbox
+                (ticket_id, payload_json, delivery_status, created_at) VALUES (?, ?, ?, ?)
+                """,
+                (ticket.id, json.dumps(payload), delivery_status, now),
+            )
+            result = f"Notification {delivery_status}"
+        self.connection.execute(
+            "INSERT OR IGNORE INTO action_receipts VALUES (?, ?, ?, ?)",
+            (ticket.id, action.id, result, now),
+        )
+        return result
+
+    def reject(self, ticket_id: str, note: str) -> Ticket:
+        ticket = self.get(ticket_id)
+        if ticket.status == "resolved":
+            raise ValueError("A resolved ticket cannot be rejected.")
+        now = datetime.now(UTC).isoformat()
+        self.connection.execute(
+            "UPDATE tickets SET status = 'rejected' WHERE id = ?",
+            (ticket_id,),
+        )
+        self.connection.commit()
+        self._event(ticket_id, "approval.rejected", note or "Rejected by reviewer.", now)
+        return self.get(ticket_id)
+
+    def events(self, ticket_id: str) -> list[WorkflowEvent]:
+        self.get(ticket_id)
+        rows = self.connection.execute(
+            "SELECT * FROM workflow_events WHERE ticket_id = ? ORDER BY id",
+            (ticket_id,),
+        ).fetchall()
+        return [
+            WorkflowEvent(
+                id=row["id"],
+                ticket_id=row["ticket_id"],
+                event_type=row["event_type"],
+                detail=row["detail"],
+                created_at=datetime.fromisoformat(row["created_at"]),
+            )
+            for row in rows
+        ]
+
+    def _record_attempt(
+        self,
+        ticket_id: str,
+        action_id: str,
+        attempt: int,
+        status: str,
+        error: str | None,
+        created_at: str,
+    ) -> None:
         self.connection.execute(
             """
-            INSERT INTO notification_outbox
-            (ticket_id, payload_json, delivery_status, created_at) VALUES (?, ?, ?, ?)
+            INSERT INTO action_attempts
+            (ticket_id, action_id, attempt, status, error, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (ticket.id, json.dumps(payload), delivery_status, now),
+            (ticket_id, action_id, attempt, status, error, created_at),
         )
-        return f"Notification {delivery_status}"
+
+    def _event(self, ticket_id: str, event_type: str, detail: str, created_at: str) -> None:
+        self.connection.execute(
+            """
+            INSERT INTO workflow_events (ticket_id, event_type, detail, created_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (ticket_id, event_type, detail, created_at),
+        )
+        self.connection.commit()
 
     def stats(self, provider: str) -> Stats:
         row = self.connection.execute(

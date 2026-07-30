@@ -3,458 +3,357 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Support Desk — Support Automation</title>
+    <meta
+      name="description"
+      content="Relay is an executable AI support operations workspace with grounded drafts, approval gates, retries and auditable side effects."
+    />
+    <title>Relay — AI support operations</title>
     <link rel="icon" href="data:," />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <main class="app-shell">
-      <aside class="nav">
+    <div class="app-shell">
+      <aside class="sidebar">
         <div class="brand">
-          <div class="brand-mark">
-            <span></span>
-            <span></span>
-          </div>
-          <div>
-            <strong>AI Support Desk</strong>
-            <small>AI SUPPORT AUTOMATION</small>
+          <div class="brand-mark" aria-hidden="true"><span></span><span></span></div>
+          <div class="brand-copy">
+            <strong>Relay</strong>
+            <span>AI support operations</span>
           </div>
         </div>
 
-        <nav class="nav-groups" aria-label="Primary navigation">
-          <div class="nav-group">
-            <span class="nav-label">Workspace</span>
-            <button class="nav-item active" data-view-button="inbox">
-              <span class="nav-icon">⌂</span>
-              Inbox
-              <span class="nav-count" id="ticket-count">0</span>
-            </button>
-            <button class="nav-item" data-view-button="workflow">
-              <span class="nav-icon">⌁</span>
-              Workflows
-            </button>
-            <button class="nav-item">
-              <span class="nav-icon">◎</span>
-              Knowledge
-            </button>
-            <button class="nav-item">
-              <span class="nav-icon">↗</span>
-              Analytics
-            </button>
-          </div>
-
-          <div class="nav-group">
-            <span class="nav-label">Saved views</span>
-            <button class="nav-item">
-              <span class="status-dot red"></span>
-              Urgent
-              <span class="nav-count muted" id="urgent-count">0</span>
-            </button>
-            <button class="nav-item">
-              <span class="status-dot amber"></span>
-              Needs approval
-              <span class="nav-count muted" id="approval-count">0</span>
-            </button>
-            <button class="nav-item">
-              <span class="status-dot teal"></span>
-              AI resolved
-              <span class="nav-count muted" id="resolved-count">0</span>
-            </button>
-          </div>
+        <nav class="primary-nav" aria-label="Product navigation">
+          <p class="nav-label">Workspace</p>
+          <button class="nav-button active" data-view="cases" type="button">
+            <span class="nav-symbol">C</span><span class="nav-copy">Cases</span>
+            <span class="nav-count" id="nav-case-count">0</span>
+          </button>
+          <button class="nav-button" data-view="workflow" type="button">
+            <span class="nav-symbol">W</span><span class="nav-copy">Workflow</span>
+          </button>
+          <button class="nav-button" data-view="runs" type="button">
+            <span class="nav-symbol">R</span><span class="nav-copy">Runs</span>
+            <span class="nav-count alert" id="nav-run-alerts" hidden>0</span>
+          </button>
         </nav>
 
-        <div class="automation-card">
-          <div class="automation-card-top">
-            <span class="pulse"></span>
-            Workflow state
-          </div>
-          <strong id="automation-provider">Connecting</strong>
-          <div class="progress"><span></span></div>
-          <small id="automation-summary">Loading workflow state</small>
-        </div>
+        <div class="sidebar-spacer"></div>
 
-        <div class="user">
-          <div class="avatar avatar-dark">MK</div>
-          <div>
-            <strong>Local reviewer</strong>
-            <small>Human approval queue</small>
+        <section class="system-card" aria-label="System status">
+          <div class="system-line">
+            <span class="health-dot" id="health-dot"></span>
+            <span id="health-label">Connecting</span>
           </div>
-          <span class="more">•••</span>
+          <strong id="provider-label">Local automation</strong>
+          <p id="queue-summary">Loading queue state</p>
+        </section>
+
+        <div class="reviewer">
+          <span class="reviewer-avatar">MK</span>
+          <div class="reviewer-copy">
+            <strong>Maya Kim</strong>
+            <span>Support operations</span>
+          </div>
         </div>
       </aside>
 
-      <section class="workspace">
+      <main class="workspace">
         <header class="topbar">
           <div>
-            <div class="eyebrow">Customer operations</div>
-            <h1 id="page-title">Support inbox</h1>
+            <p class="eyebrow" id="page-context">Customer operations</p>
+            <h1 id="page-title">Case workspace</h1>
           </div>
           <div class="topbar-actions">
-            <div class="live-status"><span></span> <span id="health-label">Connecting to API</span></div>
-            <a class="secondary api-link" href="/docs" target="_blank" rel="noreferrer">API docs</a>
-            <button class="primary compact" data-view-button="workflow">Open workflow</button>
+            <span class="environment"><i></i> Local demo</span>
+            <a class="button secondary" href="/docs" target="_blank" rel="noreferrer">API reference</a>
           </div>
         </header>
 
-        <section id="inbox-view" class="view inbox-view">
-          <aside class="ticket-panel">
-            <div class="panel-heading">
-              <div>
-                <h2>Tickets</h2>
-                <span id="open-label">0 open</span>
-              </div>
-              <button class="icon-button small" aria-label="Filter tickets">≡</button>
-            </div>
-
-            <div class="search">⌕ <span>Search tickets</span><kbd>⌘ K</kbd></div>
-            <div class="filter-row">
-              <button class="filter active">All</button>
-              <button class="filter">Mine</button>
-              <button class="filter">Urgent</button>
-            </div>
-
-            <div class="ticket-list" id="ticket-list">
-              <article class="ticket selected">
-                <div class="ticket-topline">
-                  <div class="avatar avatar-indigo">OP</div>
-                  <span class="ticket-time">2m</span>
-                </div>
-                <strong>Renewal failed — service at risk</strong>
-                <p>Our annual renewal failed and the admin console says access may be suspended...</p>
-                <div class="ticket-tags">
-                  <span class="tag danger">Urgent</span>
-                  <span class="tag violet">Billing</span>
-                  <span class="ai-mark">✦ AI triaged</span>
-                </div>
-              </article>
-
-              <article class="ticket">
-                <div class="ticket-topline">
-                  <div class="avatar avatar-cyan">SB</div>
-                  <span class="ticket-time">8m</span>
-                </div>
-                <strong>SSO setup for new workspace</strong>
-                <p>Could you confirm which metadata URL your enterprise plan requires?</p>
-                <div class="ticket-tags">
-                  <span class="tag blue">Technical</span>
-                  <span class="tag neutral">Normal</span>
-                </div>
-              </article>
-
-              <article class="ticket">
-                <div class="ticket-topline">
-                  <div class="avatar avatar-amber">NL</div>
-                  <span class="ticket-time">23m</span>
-                </div>
-                <strong>Invoice needs company VAT ID</strong>
-                <p>Finance needs the corrected invoice before month end. VAT details attached.</p>
-                <div class="ticket-tags">
-                  <span class="tag violet">Billing</span>
-                  <span class="tag neutral">Normal</span>
-                </div>
-              </article>
-
-              <article class="ticket">
-                <div class="ticket-topline">
-                  <div class="avatar avatar-green">KT</div>
-                  <span class="ticket-time">41m</span>
-                </div>
-                <strong>Export finished successfully</strong>
-                <p>Thanks — the report now includes all historical workspace activity.</p>
-                <div class="ticket-tags">
-                  <span class="tag success">Resolved</span>
-                  <span class="ai-mark">✦ AI handled</span>
-                </div>
-              </article>
-            </div>
-          </aside>
-
-          <section class="conversation">
-            <header class="conversation-header">
-              <div class="customer">
-                <div class="avatar avatar-indigo large">OP</div>
+        <section class="view cases-view" id="cases-view">
+          <div class="cases-grid">
+            <aside class="queue-panel" aria-label="Support cases">
+              <header class="panel-header queue-header">
                 <div>
-                <div class="customer-name"><span id="customer-name">—</span> <span class="verified">✓</span></div>
-                  <span id="company-name">—</span>
+                  <p class="panel-kicker">Queue</p>
+                  <h2>Cases requiring attention</h2>
                 </div>
-              </div>
-              <div class="header-tools">
-                <span class="status-pill urgent" id="ticket-status">Urgent</span>
-                <button class="icon-button small">⋯</button>
-              </div>
-            </header>
+                <span class="count-pill" id="queue-count">0</span>
+              </header>
 
-            <div class="context-strip">
-              <div><span>Ticket</span><strong id="ticket-id">—</strong></div>
-              <div><span>Account value</span><strong id="account-value">—</strong></div>
-              <div><span>Active users</span><strong class="danger-text" id="active-users">—</strong></div>
-              <div><span>Workflow</span><strong id="workflow-state">—</strong></div>
-            </div>
+              <label class="search-field">
+                <span aria-hidden="true">⌕</span>
+                <input id="case-search" type="search" placeholder="Search cases or companies" />
+              </label>
 
-            <div class="messages" id="messages">
-              <div class="date-separator"><span>Today, 10:42 AM</span></div>
-              <article class="message customer-message">
-                <div class="message-meta">
-                  <strong>Olivia Park</strong>
-                  <span>via email</span>
-                  <time>10:42 AM</time>
-                </div>
-                <p>
-                  Hi team — our annual renewal failed this morning, and the admin console now says our
-                  workspace may be suspended in 48 hours. We have 120 people using the service and cannot
-                  lose access during month end.
-                </p>
-                <p>Can you confirm our service will remain active while finance updates the payment method?</p>
-              </article>
-
-              <div class="system-event">
-                <span class="sparkle">✦</span>
-                <div>
-                  <strong>AI triage completed in 3.2 seconds</strong>
-                  <span>Billing · Urgent · Renewal risk · Human approval required</span>
-                </div>
+              <div class="filter-tabs" role="group" aria-label="Filter cases">
+                <button class="filter-tab active" data-filter="all" type="button">All</button>
+                <button class="filter-tab" data-filter="review" type="button">Review</button>
+                <button class="filter-tab" data-filter="exception" type="button">Exceptions</button>
+                <button class="filter-tab" data-filter="resolved" type="button">Done</button>
               </div>
 
-              <article class="internal-note">
-                <div class="note-icon">i</div>
-                <div>
-                  <strong>Account context</strong>
-                  <p>Enterprise customer since 2022. No failed payments in the previous 24 months.</p>
-                </div>
-              </article>
-            </div>
+              <div class="case-list" id="case-list" aria-live="polite"></div>
+            </aside>
 
-            <div class="composer">
-              <div class="composer-tabs">
-                <button class="active">Reply</button>
-                <button>Internal note</button>
-                <span>AI draft loaded</span>
-              </div>
-              <div class="composer-box">
-                <span class="reply-to" id="reply-to">To: —</span>
-                <p id="reply-copy">
-                  Hi Olivia — I’ve confirmed that your workspace will remain active while the payment method
-                  is updated. I also placed a seven-day billing hold on the account, so your team will not
-                  lose access. Your finance admin can retry the renewal from Billing → Payment methods.
-                </p>
-                <div class="composer-footer">
-                  <div class="formatting">＋ &nbsp; B &nbsp; <i>I</i> &nbsp; 🔗</div>
-                  <span>Draft saved</span>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <aside class="copilot">
-            <div class="copilot-header">
-              <div class="copilot-title">
-                <span class="sparkle-box">✦</span>
-                <div>
-                  <strong>AI Copilot</strong>
-                  <span>Draft ready for approval</span>
-                </div>
-              </div>
-              <span class="confidence" id="confidence-value">—</span>
-            </div>
-
-            <section class="copilot-section">
-              <div class="section-title">
-                <span>TRIAGE</span>
-                <small id="triage-provider">structured output</small>
-              </div>
-              <div class="triage-grid">
-                <div><span>Intent</span><strong id="intent-value">—</strong></div>
-                <div><span>Priority</span><strong class="danger-text" id="priority-value">—</strong></div>
-                <div><span>Sentiment</span><strong id="sentiment-value">—</strong></div>
-                <div><span>Route</span><strong id="route-value">—</strong></div>
-              </div>
-              <div class="risk-card">
-                <span class="risk-icon">!</span>
-                <div>
-                  <strong>Service interruption risk</strong>
-                  <p id="risk-reason">Waiting for triage.</p>
-                </div>
-              </div>
-            </section>
-
-            <section class="copilot-section">
-              <div class="section-title">
-                <span>AUTOMATIONS</span>
-                <small>3 actions prepared</small>
-              </div>
-              <div class="action-list" id="action-list">
-                <div class="action-item">
-                  <span class="check-circle">✓</span>
-                  <div><strong>Apply 7-day billing hold</strong><small>Local billing adapter</small></div>
-                  <span class="ready">Ready</span>
-                </div>
-                <div class="action-item">
-                  <span class="check-circle">✓</span>
-                  <div><strong>Update renewal case</strong><small>Local CRM adapter</small></div>
-                  <span class="ready">Ready</span>
-                </div>
-                <div class="action-item">
-                  <span class="check-circle">✓</span>
-                  <div><strong>Notify billing channel</strong><small>Webhook outbox adapter</small></div>
-                  <span class="ready">Ready</span>
-                </div>
-              </div>
-            </section>
-
-            <section class="copilot-section evidence">
-              <div class="section-title">
-                <span>ANSWER SOURCES</span>
-                <small id="source-count">0 policies</small>
-              </div>
-              <div id="source-list">
-                <div class="source-card">
-                  <div class="source-icon">POL</div>
+            <section class="case-thread" aria-label="Selected case">
+              <header class="case-header">
+                <div class="customer-identity">
+                  <span class="avatar" id="customer-avatar">—</span>
                   <div>
-                    <strong>Loading policies</strong>
-                    <span>Waiting for workflow API</span>
+                    <div class="identity-line">
+                      <strong id="customer-name">Select a case</strong>
+                      <span class="status-badge" id="case-status">—</span>
+                    </div>
+                    <p><span id="company-name">—</span> · <span id="case-id">—</span></p>
                   </div>
                 </div>
+                <div class="case-value">
+                  <span>Account value</span>
+                  <strong id="account-value">—</strong>
+                </div>
+              </header>
+
+              <div class="case-facts" aria-label="Case facts">
+                <div><span>Route</span><strong id="route-value">—</strong></div>
+                <div><span>Priority</span><strong id="priority-value">—</strong></div>
+                <div><span>Users affected</span><strong id="active-users">—</strong></div>
+                <div><span>Confidence</span><strong id="confidence-value">—</strong></div>
+              </div>
+
+              <div class="conversation-scroll">
+                <article class="incoming-message">
+                  <header>
+                    <div>
+                      <strong id="message-author">—</strong>
+                      <span>via API intake</span>
+                    </div>
+                    <time id="message-time">—</time>
+                  </header>
+                  <h2 id="case-subject">—</h2>
+                  <p id="case-body">Select a case from the queue.</p>
+                </article>
+
+                <div class="automation-event">
+                  <span class="event-mark">AI</span>
+                  <div>
+                    <strong>Investigation completed</strong>
+                    <p id="triage-summary">Waiting for workflow state.</p>
+                  </div>
+                  <span class="event-duration">structured</span>
+                </div>
+
+                <article class="draft-card">
+                  <header>
+                    <div>
+                      <p class="panel-kicker">Grounded draft</p>
+                      <h2>Response prepared for review</h2>
+                    </div>
+                    <button class="text-button" id="copy-draft" type="button">Copy draft</button>
+                  </header>
+                  <textarea id="draft-copy" readonly aria-label="Prepared response"></textarea>
+                  <footer>
+                    <span><i class="evidence-dot"></i> Evidence required before sending</span>
+                    <span id="draft-state">Not yet approved</span>
+                  </footer>
+                </article>
               </div>
             </section>
 
-            <div class="approval" id="approval-panel">
-              <div class="approval-note"><span>✓</span> All actions require your approval</div>
-              <div class="approval-buttons">
-                <button class="secondary">Edit draft</button>
-                <button class="primary" id="approve-button">Approve &amp; send</button>
-              </div>
-            </div>
-          </aside>
-        </section>
-
-        <section id="workflow-view" class="view workflow-view" hidden>
-          <div class="workflow-toolbar">
-            <div>
-              <div class="workflow-title-row">
-                <button class="back-button" data-view-button="inbox">←</button>
+            <aside class="intelligence-panel" aria-label="AI work and controls">
+              <header class="panel-header intelligence-header">
                 <div>
-                  <h2>AI support triage &amp; approval</h2>
-                  <span>Executable local workflow · API-backed run state</span>
+                  <p class="panel-kicker">Relay intelligence</p>
+                  <h2>Investigation and actions</h2>
                 </div>
-              </div>
-            </div>
-            <div class="workflow-actions">
-              <span class="workflow-live"><i></i> Active</span>
-              <a class="secondary api-link" href="/docs" target="_blank" rel="noreferrer">Inspect API</a>
-            </div>
-          </div>
+                <span class="confidence-chip" id="confidence-chip">—</span>
+              </header>
 
-          <div class="workflow-body">
-            <div class="canvas">
-              <div class="canvas-controls">
-                <button>＋</button><button>−</button><button>⌖</button>
+              <div class="intelligence-tabs" role="tablist" aria-label="Case intelligence">
+                <button class="intelligence-tab active" data-intel-tab="work" role="tab" type="button">
+                  AI work
+                </button>
+                <button class="intelligence-tab" data-intel-tab="evidence" role="tab" type="button">
+                  Evidence <span id="evidence-count">0</span>
+                </button>
+                <button class="intelligence-tab" data-intel-tab="timeline" role="tab" type="button">
+                  Timeline
+                </button>
               </div>
-              <svg class="connections" aria-hidden="true">
-                <path d="M165 189 C195 189 195 189 225 189" />
-                <path d="M355 189 C385 189 385 189 415 189" />
-                <path d="M545 189 C575 189 575 189 605 189" />
-                <path d="M735 189 C765 189 765 189 795 189" />
-                <path d="M860 238 C860 298 860 305 860 365" />
-                <path d="M795 414 C765 414 765 414 735 414" />
-                <path d="M605 414 C575 414 575 414 545 414" />
-                <path d="M415 414 C385 414 385 414 355 414" />
-              </svg>
 
-              <div class="workflow-node trigger" style="left: 35px; top: 139px">
-                <div class="node-icon">✉</div>
-                <div><strong>New support ticket</strong><span>REST webhook</span></div>
-                <i class="node-port out"></i>
-              </div>
-              <div class="workflow-node" style="left: 225px; top: 139px">
-                <i class="node-port in"></i>
-                <div class="node-icon purple">AI</div>
-                <div><strong>Classify &amp; prioritize</strong><span>Configurable structured provider</span></div>
-                <i class="node-port out"></i>
-              </div>
-              <div class="workflow-node" style="left: 415px; top: 139px">
-                <i class="node-port in"></i>
-                <div class="node-icon teal">KB</div>
-                <div><strong>Retrieve policies</strong><span>Approved policy set</span></div>
-                <i class="node-port out"></i>
-                <em>Evidence</em>
-              </div>
-              <div class="workflow-node" style="left: 605px; top: 139px">
-                <i class="node-port in"></i>
-                <div class="node-icon purple">AI</div>
-                <div><strong>Draft response</strong><span>Brand voice + account context</span></div>
-                <i class="node-port out"></i>
-              </div>
-              <div class="workflow-node decision" style="left: 795px; top: 139px">
-                <i class="node-port in"></i>
-                <div class="node-icon amber">IF</div>
-                <div><strong>Approval needed?</strong><span>Risk + confidence rules</span></div>
-                <i class="node-port down"></i>
-              </div>
-              <div class="branch-label" style="left: 873px; top: 284px">YES</div>
-              <div class="workflow-node approval-node" style="left: 795px; top: 365px">
-                <i class="node-port up"></i>
-                <div class="node-icon coral">✓</div>
-                <div><strong>Request approval</strong><span>Reviewer API gate</span></div>
-                <i class="node-port out left"></i>
-                <em>Required</em>
-              </div>
-              <div class="workflow-node" style="left: 605px; top: 365px">
-                <i class="node-port in right"></i>
-                <div class="node-icon green">↗</div>
-                <div><strong>Record approved reply</strong><span>Case history</span></div>
-                <i class="node-port out left"></i>
-                <em>After gate</em>
-              </div>
-              <div class="workflow-node" style="left: 415px; top: 365px">
-                <i class="node-port in right"></i>
-                <div class="node-icon blue">CRM</div>
-                <div><strong>Update customer case</strong><span>SQLite CRM adapter</span></div>
-                <i class="node-port out left"></i>
-              </div>
-              <div class="workflow-node" style="left: 225px; top: 365px">
-                <i class="node-port in right"></i>
-                <div class="node-icon dark">▤</div>
-                <div><strong>Log &amp; notify</strong><span>Audit log + webhook outbox</span></div>
-                <em>Audited</em>
-              </div>
-            </div>
+              <div class="intelligence-content">
+                <section class="intel-pane active" data-intel-pane="work">
+                  <div class="risk-summary">
+                    <p class="panel-kicker">Decision summary</p>
+                    <h3 id="risk-heading">Waiting for a case</h3>
+                    <p id="risk-reason">Select a case to inspect the automation decision.</p>
+                  </div>
 
-            <aside class="run-panel">
-              <div class="run-heading">
-                <div><span class="success-dot"></span><strong>Workflow definition</strong></div>
-                <span>v0.1</span>
+                  <div class="decision-grid">
+                    <div><span>Intent</span><strong id="intent-value">—</strong></div>
+                    <div><span>Sentiment</span><strong id="sentiment-value">—</strong></div>
+                  </div>
+
+                  <div class="section-heading">
+                    <div>
+                      <p class="panel-kicker">Proposed side effects</p>
+                      <h3>Actions after approval</h3>
+                    </div>
+                    <span id="action-count">0</span>
+                  </div>
+                  <div class="action-list" id="action-list"></div>
+                </section>
+
+                <section class="intel-pane" data-intel-pane="evidence">
+                  <div class="evidence-intro">
+                    <p class="panel-kicker">Grounding</p>
+                    <h3>Policy passages used by the draft</h3>
+                    <p>Every customer-facing claim should trace back to an approved source.</p>
+                  </div>
+                  <div class="source-list" id="source-list"></div>
+                </section>
+
+                <section class="intel-pane" data-intel-pane="timeline">
+                  <div class="evidence-intro">
+                    <p class="panel-kicker">Audit trail</p>
+                    <h3>Case workflow events</h3>
+                    <p>Approval, retries and side effects remain visible after execution.</p>
+                  </div>
+                  <div class="timeline" id="case-timeline"></div>
+                </section>
               </div>
-              <div class="run-summary">
-                <strong>Human-gated support automation</strong>
-                <span>Executable through the REST API</span>
-              </div>
-              <div class="run-metrics">
-                <div><span>Stages</span><strong>6</strong></div>
-                <div><span>Default</span><strong>Local</strong></div>
-                <div><span>Status</span><strong class="green-text" id="workflow-status">Ready</strong></div>
-              </div>
-              <div class="run-log">
-                <div class="log-item"><span>✓</span><div><strong>Ticket intake</strong><small>Validated JSON payload</small></div></div>
-                <div class="log-item"><span>✓</span><div><strong>Structured classification</strong><small>Local or OpenAI-compatible</small></div></div>
-                <div class="log-item"><span>✓</span><div><strong>Policies retrieved</strong><small>Evidence attached to draft</small></div></div>
-                <div class="log-item"><span>✓</span><div><strong>Human approval</strong><small>Required before side effects</small></div></div>
-                <div class="log-item"><span>✓</span><div><strong>Adapters executed</strong><small>Billing, CRM and outbox</small></div></div>
-              </div>
-              <div class="run-output">
-                <span>OUTPUT</span>
-                <code id="workflow-output">{"status":"loading"}</code>
-              </div>
+
+              <footer class="review-bar" id="review-bar"></footer>
             </aside>
           </div>
         </section>
-      </section>
-    </main>
 
-    <div class="toast" id="toast" role="status">
-      <span class="toast-icon">✓</span>
-      <div><strong>Reply sent successfully</strong><small>Billing hold and CRM updates completed</small></div>
+        <section class="view workflow-view" id="workflow-view" hidden>
+          <div class="workflow-layout">
+            <section class="workflow-main">
+              <header class="section-hero">
+                <div>
+                  <p class="eyebrow">Published workflow · v1.2</p>
+                  <h2>Support triage and controlled execution</h2>
+                  <p>
+                    AI can investigate and prepare work. A reviewer controls consequential actions,
+                    and every adapter writes an auditable result.
+                  </p>
+                </div>
+                <span class="published-chip"><i></i> Published</span>
+              </header>
+
+              <div class="workflow-graph" id="workflow-graph" aria-label="Executable workflow"></div>
+            </section>
+
+            <aside class="workflow-inspector">
+              <p class="panel-kicker">Workflow contract</p>
+              <h2>Human-gated support automation</h2>
+              <p>
+                The browser and n8n template call the same typed API. Model output cannot bypass
+                the approval boundary.
+              </p>
+
+              <dl class="contract-list">
+                <div><dt>Trigger</dt><dd>Typed support request</dd></div>
+                <div><dt>Provider</dt><dd id="workflow-provider">Local structured output</dd></div>
+                <div><dt>Retry budget</dt><dd>3 attempts per action</dd></div>
+                <div><dt>Side effects</dt><dd>Idempotent receipts</dd></div>
+                <div><dt>Failure route</dt><dd>Dead-letter review</dd></div>
+              </dl>
+
+              <div class="control-note">
+                <strong>Approval boundary</strong>
+                <p>Draft generation is reversible. Billing, CRM and notification changes are not.</p>
+              </div>
+              <a class="button primary full" href="/docs" target="_blank" rel="noreferrer">
+                Inspect the typed API
+              </a>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view runs-view" id="runs-view" hidden>
+          <div class="runs-layout">
+            <aside class="run-list-panel">
+              <header class="panel-header">
+                <div>
+                  <p class="panel-kicker">Execution history</p>
+                  <h2>Workflow runs</h2>
+                </div>
+              </header>
+              <div class="run-list" id="run-list"></div>
+            </aside>
+
+            <section class="run-detail">
+              <header class="run-detail-header">
+                <div>
+                  <p class="eyebrow">Run inspector</p>
+                  <h2 id="run-title">Select a workflow run</h2>
+                  <p id="run-subtitle">Inputs, approval events, attempts and action receipts.</p>
+                </div>
+                <span class="status-badge" id="run-status">—</span>
+              </header>
+
+              <div class="run-summary-grid">
+                <div><span>Case</span><strong id="run-case">—</strong></div>
+                <div><span>Route</span><strong id="run-route">—</strong></div>
+                <div><span>Actions</span><strong id="run-actions">—</strong></div>
+                <div><span>Approved</span><strong id="run-approved">—</strong></div>
+              </div>
+
+              <div class="run-content-grid">
+                <section class="trace-card">
+                  <header>
+                    <div>
+                      <p class="panel-kicker">Chronological trace</p>
+                      <h3>Execution events</h3>
+                    </div>
+                  </header>
+                  <div class="timeline large" id="run-timeline"></div>
+                </section>
+
+                <section class="receipt-card">
+                  <header>
+                    <p class="panel-kicker">Action receipts</p>
+                    <h3>External side effects</h3>
+                  </header>
+                  <div class="receipt-list" id="receipt-list"></div>
+                </section>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
     </div>
 
-    <script src="./app.js"></script>
+    <dialog id="reject-dialog">
+      <form method="dialog" class="dialog-card">
+        <div>
+          <p class="panel-kicker">Return to queue</p>
+          <h2>Reject the proposed action?</h2>
+          <p>Add a short reason so the decision remains useful in the audit trail.</p>
+        </div>
+        <label>
+          Reviewer note
+          <textarea
+            id="reject-note"
+            maxlength="500"
+            placeholder="For example: confirm the payment update with Finance first."
+          ></textarea>
+        </label>
+        <div class="dialog-actions">
+          <button class="button secondary" value="cancel" type="submit">Cancel</button>
+          <button class="button danger" id="confirm-reject" value="default" type="button">
+            Reject action
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite">
+      <strong>Updated</strong><span>Workflow state refreshed.</span>
+    </div>
+
+    <script src="/app.js" defer></script>
   </body>
 </html>

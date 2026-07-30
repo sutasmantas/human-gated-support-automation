@@ -34,6 +34,24 @@ POLICIES = [
         excerpt="Enterprise SSO requests route to Technical Support with workspace metadata.",
         score=0.91,
     ),
+    Source(
+        title="Billing operations handbook",
+        section="Invoice corrections",
+        excerpt=(
+            "Tax-identifier and legal-entity corrections must be verified before a replacement "
+            "invoice is issued by Billing Operations."
+        ),
+        score=0.93,
+    ),
+    Source(
+        title="Data delivery runbook",
+        section="Completed exports",
+        excerpt=(
+            "After export delivery is verified, close the operations case and notify the "
+            "customer's account team."
+        ),
+        score=0.95,
+    ),
 ]
 
 
@@ -58,12 +76,18 @@ class LocalAutomation:
 
     def process(self, ticket: TicketCreate) -> AutomationResult:
         text = f"{ticket.subject} {ticket.body}".lower()
-        if any(word in text for word in ("renewal", "payment", "invoice", "billing")):
+        if any(word in text for word in ("invoice", "vat", "tax id")):
+            intent, route = "Invoice correction", "Billing Ops"
+            sources = [POLICIES[3]]
+        elif any(word in text for word in ("renewal", "payment", "service at risk")):
             intent, route = "Failed renewal", "Billing Ops"
             sources = POLICIES[:2]
         elif any(word in text for word in ("sso", "saml", "metadata")):
             intent, route = "SSO configuration", "Technical Support"
             sources = [POLICIES[2]]
+        elif any(word in text for word in ("export", "delivered", "data delivery")):
+            intent, route = "Completed export", "Data Operations"
+            sources = [POLICIES[4]]
         else:
             intent, route = "General support", "Customer Support"
             sources = []
@@ -98,37 +122,66 @@ class LocalAutomation:
                 "Please send the workspace ID and identity-provider metadata URL so Technical "
                 "Support can validate the configuration."
             )
+        elif intent == "Invoice correction":
+            draft = (
+                f"Hi {ticket.customer_name.split()[0]} — I routed the invoice correction to "
+                "Billing Operations. Please confirm the VAT ID and legal entity that should "
+                "appear on the replacement invoice."
+            )
+        elif intent == "Completed export":
+            draft = (
+                f"Hi {ticket.customer_name.split()[0]} — the historical export is marked as "
+                "delivered. I can close the operations case and notify your account team."
+            )
         else:
             draft = (
                 f"Hi {ticket.customer_name.split()[0]} — thanks for the details. "
                 "I routed this request to Customer Support for review."
             )
 
-        actions = [
-            Action(
-                id="billing-hold",
-                kind="billing_hold",
-                label="Apply 7-day billing hold",
-                system="Local billing adapter",
-                status="pending",
-            ),
+        actions = []
+        if needs_hold:
+            actions.append(
+                Action(
+                    id="billing-hold",
+                    kind="billing_hold",
+                    label="Apply 7-day billing hold",
+                    system="Local billing adapter",
+                    status="pending",
+                )
+            )
+        case_labels = {
+            "Failed renewal": "Update renewal case",
+            "Invoice correction": "Open invoice correction",
+            "SSO configuration": "Update technical support case",
+            "Completed export": "Close export delivery case",
+            "General support": "Update support case",
+        }
+        notification_labels = {
+            "Failed renewal": "Notify billing channel",
+            "Invoice correction": "Notify billing owner",
+            "SSO configuration": "Notify technical support",
+            "Completed export": "Notify account team",
+            "General support": "Notify support owner",
+        }
+        actions.extend(
+            [
             Action(
                 id="case-update",
                 kind="case_update",
-                label="Update renewal case",
+                label=case_labels[intent],
                 system="Local CRM adapter",
                 status="pending",
             ),
             Action(
                 id="notify",
                 kind="notification",
-                label="Notify billing channel",
+                label=notification_labels[intent],
                 system="Outbox webhook adapter",
                 status="pending",
             ),
-        ]
-        if not needs_hold:
-            actions = actions[1:]
+            ]
+        )
         return AutomationResult(
             intent=intent,
             priority=priority,

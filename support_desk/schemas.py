@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -21,6 +22,8 @@ class Action(BaseModel):
     system: str
     status: str
     result: str | None = None
+    attempts: int = 0
+    last_error: str | None = None
 
 
 class Source(BaseModel):
@@ -64,3 +67,16 @@ class WorkflowStep(BaseModel):
     name: str
     kind: str
     description: str
+
+
+class DecisionRequest(BaseModel):
+    decision: Literal["approve", "reject"]
+    note: str = Field(default="", max_length=500)
+
+
+class WorkflowEvent(BaseModel):
+    id: int
+    ticket_id: str
+    event_type: str
+    detail: str
+    created_at: datetime
