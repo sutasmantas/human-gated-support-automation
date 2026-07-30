@@ -1,13 +1,39 @@
 # AI Support Desk
 
-A working human-in-the-loop support automation system. Incoming tickets are
-validated, classified, matched to approved policies, drafted, risk-gated, and
-queued for review. Approval executes auditable billing, CRM, and notification
-adapters instead of merely changing the interface.
+[![CI](https://github.com/sutasmantas/human-gated-support-automation/actions/workflows/ci.yml/badge.svg)](https://github.com/sutasmantas/human-gated-support-automation/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
+[![MIT license](https://img.shields.io/badge/license-MIT-D97706)](LICENSE)
+
+**Turn a support ticket into a policy-grounded draft, then keep consequential
+actions behind human approval.**
+
+This repository implements the whole control path: typed intake, AI-assisted
+triage, policy retrieval, risk gating, approval, and idempotent side effects.
+The default provider is deterministic and needs no credentials. An
+OpenAI-compatible structured-output provider and an importable n8n workflow are
+included for model-backed and low-code deployments.
 
 ![Support approval workspace](docs/screenshots/support-approval.png)
 
+## Try the approval flow
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/sutasmantas/human-gated-support-automation?quickstart=1)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/sutasmantas/human-gated-support-automation)
+
+The Codespace installs and starts the app on port 8000. Open the seeded renewal
+ticket, inspect the policy evidence and proposed actions, then approve it. The
+approval writes a billing hold, CRM event, audit event, and notification outbox
+record. Approving the same ticket again is safe and does not duplicate effects.
+
+The Render blueprint exposes the same local workflow. Free Render instances
+sleep and use ephemeral local storage, so their demo state can reset.
+
+<details>
+<summary>See the executable workflow</summary>
+
 ![Executable workflow view](docs/screenshots/support-workflow.png)
+
+</details>
 
 ## Implemented workflow
 
@@ -19,10 +45,6 @@ adapters instead of merely changing the interface.
 5. `POST /api/tickets/{id}/approve` records a billing hold, appends a CRM event,
    and writes or delivers a notification through an outbox adapter.
 6. Repeated approval requests are idempotent.
-
-The default provider is deterministic and local so the repository works without
-credentials. An OpenAI-compatible structured-output provider is included for
-model-backed triage and drafting.
 
 ## Run locally
 

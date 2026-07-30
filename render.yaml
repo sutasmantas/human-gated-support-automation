@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: human-gated-support-automation
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    autoDeployTrigger: "off"
