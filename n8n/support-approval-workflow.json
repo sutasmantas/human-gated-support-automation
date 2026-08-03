@@ -1,0 +1,157 @@
+{
+  "name": "AI Support Intake and Approval",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "support-intake",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "intake-webhook",
+      "name": "Support intake",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "support-intake"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://support-desk:8000/api/tickets",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.body) }}",
+        "options": {}
+      },
+      "id": "create-ticket",
+      "name": "Run support automation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "approval-condition",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "needs_approval",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "approval-needed",
+      "name": "Approval needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ticket: $json, next_step: 'human_approval' } }}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "pending-response",
+      "name": "Return approval request",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [720, -100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ticket: $json, next_step: 'draft_ready' } }}",
+        "options": {}
+      },
+      "id": "draft-response",
+      "name": "Return prepared draft",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [720, 100]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "support-approve/:ticketId",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "approval-webhook",
+      "name": "Human approval",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 320],
+      "webhookId": "support-approve"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://support-desk:8000/api/tickets/{{ $json.params.ticketId }}/approve",
+        "options": {}
+      },
+      "id": "execute-actions",
+      "name": "Execute approved actions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 320]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "approval-response",
+      "name": "Return completed workflow",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [480, 320]
+    }
+  ],
+  "connections": {
+    "Support intake": {
+      "main": [[{"node": "Run support automation", "type": "main", "index": 0}]]
+    },
+    "Run support automation": {
+      "main": [[{"node": "Approval needed?", "type": "main", "index": 0}]]
+    },
+    "Approval needed?": {
+      "main": [
+        [{"node": "Return approval request", "type": "main", "index": 0}],
+        [{"node": "Return prepared draft", "type": "main", "index": 0}]
+      ]
+    },
+    "Human approval": {
+      "main": [[{"node": "Execute approved actions", "type": "main", "index": 0}]]
+    },
+    "Execute approved actions": {
+      "main": [[{"node": "Return completed workflow", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b77afc37-2c48-4dd1-9099-785853a2f7e3",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

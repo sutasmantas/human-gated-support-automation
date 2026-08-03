@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "relay": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["-m", "support_desk.mcp_server"],
+      "env": {
+        "SUPPORT_DATA_DIR": "data/runtime"
+      }
+    }
+  }
+}
