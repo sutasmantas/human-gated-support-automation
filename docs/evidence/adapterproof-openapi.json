@@ -1,0 +1,57 @@
+{
+  "evidence_version": "1.0.0",
+  "observed_at": "2026-08-06",
+  "consumer": "relay",
+  "consumer_base_commit": "9a4c45218fd3205f8169666ed019df828761f88e",
+  "provider": {
+    "repository": "sutasmantas/api-adapter-conformance-harness",
+    "git_pin": "fa0296f4294b5149605c5fbf4e809adddba76e74"
+  },
+  "engine": {
+    "repository": "schemathesis/schemathesis",
+    "git_pin": "40e71c4657c79be08ea772b612a121b0e0ac7142",
+    "reported_version": "4.24.3"
+  },
+  "contract": "adapterproof.openapi.json",
+  "controls": {
+    "phase": "coverage",
+    "path_regex": "^/api/tickets$",
+    "selected_operations": 2,
+    "total_operations": 13,
+    "max_examples": 1,
+    "workers": 1,
+    "seed": 20260806,
+    "run_timeout_seconds": 30,
+    "disposable_data": true,
+    "separate_tool_and_consumer_interpreters": true
+  },
+  "result": {
+    "class": "NO_FINDINGS",
+    "schemathesis_exit": 0,
+    "generated_cases": 77,
+    "passed_cases": 77,
+    "elapsed_seconds": 7.998,
+    "report_sha256": "63aec0fe65af8dcdc3a340bba73d2725ece952ea2ed7aadff5199c90f990f9af"
+  },
+  "defects_found_and_regressed": [
+    {
+      "boundary": "OpenAPI integer request fields",
+      "observed_problem": "Runtime coercion accepted JSON booleans as integers.",
+      "correction": "Reject booleans and numeric strings before Pydantic integer parsing.",
+      "regression": "tests/test_api.py rejects false for arr_usd and active_users."
+    },
+    {
+      "boundary": "JSON Schema integer semantics",
+      "observed_problem": "An initial strict-mode correction rejected schema-valid integer-valued numbers such as 2.0.",
+      "correction": "Allow integer-valued JSON numbers while retaining boolean and string rejection.",
+      "regression": "tests/test_api.py accepts 5000.0 and 12.0 and returns integer fields."
+    }
+  ],
+  "provider_correction_during_trial": "Captured Uvicorn logs could block the consumer process and Schemathesis NonFatalError events could be misclassified as findings; local corrective commit 751e1f8 and publication candidate fa0296f bound service logs and classify incomplete runs as RUN_ERROR.",
+  "raw_report_committed": false,
+  "limitations": [
+    "This bounded run covers only GET and POST /api/tickets, not every API operation.",
+    "NO_FINDINGS means no issue was observed under these frozen controls; it is not proof that no defect exists.",
+    "The reusable GitHub workflow is configured but is not hosted evidence until the provider commit and consumer workflow are pushed and execute on GitHub."
+  ]
+}

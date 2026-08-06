@@ -1,5 +1,33 @@
 # Relay execution checkpoint
 
+## Shared OpenAPI consumer slice — 2026-08-06
+
+- branch: `agent/toolbox-api-verification`
+- isolated worktree: `portfolio_demos/worktrees/relay_api_toolbox`
+- clean base: `9a4c45218fd3205f8169666ed019df828761f88e`
+- reusable provider: AdapterProof
+  `fa0296f4294b5149605c5fbf4e809adddba76e74`;
+- correctness defect in scope: reject JSON booleans for the OpenAPI integer
+  fields `arr_usd` and `active_users` instead of coercing them;
+- security-specific work: postponed to the final toolbox backlog;
+- license research: excluded by user direction.
+
+Current gate: **LOCAL_CONSUMER_PASS_HOSTED_EXECUTION_PENDING**.
+
+| Gate | Evidence | Status |
+| --- | --- | --- |
+| shared consumer contract | `adapterproof.openapi.json`; GET and POST `/api/tickets` | PASS |
+| generated-case corrections | booleans rejected; schema-valid integral floats accepted; deterministic tests for both boundaries | PASS |
+| real isolated execution | 77/77 generated cases; `NO_FINDINGS`; report SHA-256 `63aec0fe...990f9af` | PASS |
+| committed receipt summary | `docs/evidence/adapterproof-openapi.json` | PASS |
+| clean-environment project gate | Ruff; 41 passed; 85% coverage; JSON/YAML parse | PASS |
+| reusable hosted workflow | exact provider commit configured, but neither side has executed this slice on GitHub | PENDING |
+
+Exact next action: publish AdapterProof snapshot candidate
+`fa0296f4294b5149605c5fbf4e809adddba76e74` before publishing this consumer
+workflow, then preserve the hosted run URL. Local reuse and defect discovery are
+proven; hosted reuse must not be claimed yet.
+
 Last updated: 2026-08-03
 
 This file is the authoritative Relay restart point. R0–R3 from

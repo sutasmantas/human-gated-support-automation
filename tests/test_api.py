@@ -87,6 +87,40 @@ def test_new_ticket_uses_risk_gate(tmp_path: Path) -> None:
         assert [source["title"] for source in payload["sources"]] == ["Identity support guide"]
 
 
+def test_boolean_values_are_rejected_for_integer_ticket_fields(tmp_path: Path) -> None:
+    payload = {
+        "subject": "SSO metadata question",
+        "body": "Please help us validate the SAML metadata URL for our new workspace.",
+        "customer_name": "Sam Bell",
+        "company": "Northstar",
+        "arr_usd": 5_000,
+        "active_users": 12,
+    }
+    with TestClient(create_app(settings(tmp_path))) as client:
+        for field in ("arr_usd", "active_users"):
+            invalid = {**payload, field: False}
+            response = client.post("/api/tickets", json=invalid)
+            assert response.status_code == 422
+            assert response.json()["detail"][0]["loc"] == ["body", field]
+
+
+def test_integer_valued_json_numbers_are_accepted(tmp_path: Path) -> None:
+    payload = {
+        "subject": "SSO metadata question",
+        "body": "Please help us validate the SAML metadata URL for our new workspace.",
+        "customer_name": "Sam Bell",
+        "company": "Northstar",
+        "arr_usd": 5_000.0,
+        "active_users": 12.0,
+    }
+    with TestClient(create_app(settings(tmp_path))) as client:
+        response = client.post("/api/tickets", json=payload)
+
+    assert response.status_code == 201
+    assert response.json()["arr_usd"] == 5_000
+    assert response.json()["active_users"] == 12
+
+
 def test_missing_ticket_returns_not_found(tmp_path: Path) -> None:
     with TestClient(create_app(settings(tmp_path))) as client:
         assert client.get("/api/tickets/missing").status_code == 404

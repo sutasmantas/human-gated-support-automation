@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class TicketCreate(BaseModel):
@@ -13,6 +13,17 @@ class TicketCreate(BaseModel):
     company: str = Field(min_length=2, max_length=120)
     arr_usd: int = Field(default=0, ge=0)
     active_users: int = Field(default=1, ge=1)
+
+    @field_validator("arr_usd", "active_users", mode="before")
+    @classmethod
+    def reject_non_numeric_integer_inputs(cls, value: object) -> object:
+        # JSON Schema integers include integer-valued numbers such as 2.0, but
+        # never booleans or numeric strings. Pydantic's default integer coercion
+        # accepts all three, while strict mode rejects all three; this boundary
+        # keeps runtime validation aligned with the generated OpenAPI document.
+        if isinstance(value, (bool, str)):
+            raise ValueError("input must be a JSON integer")
+        return value
 
 
 class Action(BaseModel):

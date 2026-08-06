@@ -197,6 +197,24 @@ It is inactive by default.
 
 ## Verification
 
+Relay consumes AdapterProof's reusable OpenAPI contract gate at exact commit
+`fa0296f4294b5149605c5fbf4e809adddba76e74`. Its consumer profile exercises the
+real `GET` and `POST /api/tickets` operations over TCP with deterministic
+schema-derived coverage, disposable SQLite state, and a 30-second budget.
+
+```powershell
+<adapterproof-tool-python> -m adapterproof openapi `
+  --config adapterproof.openapi.json `
+  --consumer-python .\.venv\Scripts\python.exe `
+  --report-dir .evidence\openapi
+```
+
+This shared gate found that the previous intake model accepted JSON `false` for
+an OpenAPI integer and coerced it to `0`. `TicketCreate` now uses strict integer
+validation, with a project regression test and the same reusable contract as
+the external check. The GitHub workflow uploads AdapterProof's classified
+NDJSON receipt rather than duplicating its runner in this repository.
+
 ```bash
 ruff check .
 pytest --cov=support_desk --cov-report=term-missing
