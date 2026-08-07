@@ -33,7 +33,11 @@ from support_desk.effects import effect_idempotency_key
 from support_desk.main import create_app
 from support_desk.outbound import OutboundHTTPAdapter
 from support_desk.store import TicketStore
-from tests.counting_target import (
+# Imported by module name, not as `tests.counting_target`. CI invokes bare
+# `pytest`, which does not put the working directory on sys.path the way
+# `python -m pytest` does, so a package-qualified import fails to collect there
+# while passing locally.
+from counting_target import (  # noqa: E402
     CountingTargetState,
     counting_transport,
     create_counting_target,
