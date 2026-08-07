@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import socket
+import sqlite3
 import threading
 import time
 from collections.abc import Iterator
@@ -188,9 +189,12 @@ async def test_read_failure_and_wait_cancellation_have_no_side_effects(mcp_runti
             await wait_task
 
         assert runtime.store.get(ticket_id).status == "needs_approval"
-        assert runtime.store.connection.execute(
-            "SELECT COUNT(*) FROM action_receipts"
-        ).fetchone()[0] == 0
+        # The same invariant as before, now asserted against the provider-owned
+        # durable store: an unapproved proposal registers no external effect.
+        assert runtime.store.deliveries.database_path.exists()
+        with sqlite3.connect(runtime.store.deliveries.database_path) as deliveries:
+            assert deliveries.execute("SELECT COUNT(*) FROM delivery_actions").fetchone()[0] == 0
+            assert deliveries.execute("SELECT COUNT(*) FROM delivery_attempts").fetchone()[0] == 0
 
 
 def test_network_exposure_and_auth_configuration_are_fail_closed(tmp_path: Path) -> None:

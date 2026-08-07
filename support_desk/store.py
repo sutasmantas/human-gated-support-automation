@@ -5,10 +5,14 @@ import json
 import sqlite3
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
+from deliveryguard.identifiers import normalize_correlation_id
+from deliveryguard.store import DeliveryStore
 
 from support_desk.config import Settings
+from support_desk.effects import DurableEffectGateway, effect_idempotency_key
 from support_desk.engine import AutomationResult
 from support_desk.schemas import (
     Action,
@@ -46,6 +50,13 @@ class TicketStore:
         self.connection.row_factory = sqlite3.Row
         self.registry = registry or create_default_registry()
         self.planner = planner or create_planner(settings)
+        # Idempotency, attempt receipts, dead-lettering, crash recovery, and
+        # replay are provider-owned. Relay only paces the attempts.
+        self.deliveries = DeliveryStore(settings.delivery_sqlite_path)
+        self.gateway = DurableEffectGateway(
+            self.deliveries,
+            max_attempts=settings.max_action_attempts,
+        )
         self._initialize()
 
     def _initialize(self) -> None:
@@ -89,22 +100,6 @@ class TicketStore:
                 ticket_id TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
                 delivery_status TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS action_receipts (
-                ticket_id TEXT NOT NULL,
-                action_id TEXT NOT NULL,
-                result TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                PRIMARY KEY (ticket_id, action_id)
-            );
-            CREATE TABLE IF NOT EXISTS action_attempts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                ticket_id TEXT NOT NULL,
-                action_id TEXT NOT NULL,
-                attempt INTEGER NOT NULL,
-                status TEXT NOT NULL,
-                error TEXT,
                 created_at TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS workflow_events (
@@ -498,9 +493,34 @@ class TicketStore:
                     ),
                     now,
                 )
-            try:
-                result, result_payload = self._execute_action(ticket, action, now)
-                self._record_attempt(ticket.id, action.id, attempt, "completed", None, now)
+            outcome = self.gateway.execute(
+                idempotency_key=effect_idempotency_key(
+                    ticket_id=ticket.id,
+                    action_id=action.id,
+                    tool_name=action.tool_name,
+                    arguments=action.arguments,
+                ),
+                destination=f"tool:{action.tool_name or action.kind}",
+                payload={
+                    "ticket_id": ticket.id,
+                    "action_id": action.id,
+                    "tool_name": action.tool_name,
+                    "arguments": action.arguments,
+                },
+                correlation_id=normalize_correlation_id(ticket.id),
+                effect=lambda bound=action: self._execute_action(ticket, bound, now),
+            )
+            attempt = outcome.attempt_count
+
+            if outcome.succeeded:
+                result_payload = outcome.result or {
+                    "message": f"Effect {outcome.state.value} on an earlier attempt",
+                    "delivery_status": outcome.state.value,
+                    "receipt_reused": True,
+                }
+                result = str(
+                    result_payload.get("message") or json.dumps(result_payload, sort_keys=True)
+                )
                 if action.tool_call_id:
                     self._update_tool_call(
                         ticket.id,
@@ -535,16 +555,15 @@ class TicketStore:
                         }
                     )
                 )
-            except (ToolRetryableError, ToolTerminalError, httpx.HTTPError) as exc:
-                error = f"{type(exc).__name__}: {exc}"
-                is_terminal = isinstance(exc, ToolTerminalError)
-                terminal_failure = terminal_failure or is_terminal
-                self._record_attempt(ticket.id, action.id, attempt, "failed", error, now)
+            else:
+                error = outcome.error or "The durable effect budget is exhausted."
+                terminal_failure = terminal_failure or outcome.dead_lettered
+                call_status = "retryable_failed" if outcome.retryable else "terminal_failed"
                 if action.tool_call_id:
                     self._update_tool_call(
                         ticket.id,
                         action.tool_call_id,
-                        status="terminal_failed" if is_terminal else "retryable_failed",
+                        status=call_status,
                         attempts=attempt,
                         error=error,
                     )
@@ -555,11 +574,15 @@ class TicketStore:
                             {
                                 "call_id": action.tool_call_id,
                                 "tool_name": action.tool_name,
-                                "status": (
-                                    "terminal_failed" if is_terminal else "retryable_failed"
-                                ),
+                                "status": call_status,
                                 "attempt": attempt,
                                 "error": error,
+                                "classification": (
+                                    outcome.classification.value
+                                    if outcome.classification
+                                    else None
+                                ),
+                                "durable_state": outcome.state.value,
                             },
                             sort_keys=True,
                         ),
@@ -575,11 +598,9 @@ class TicketStore:
                     )
                 )
         resolved = all(action.status == "completed" for action in completed)
-        exhausted = terminal_failure or any(
-            action.status == "failed"
-            and action.attempts >= self.settings.max_action_attempts
-            for action in completed
-        )
+        # The provider owns the budget: it flips an action to dead_letter on a
+        # non-retryable failure or when attempt_count reaches max_attempts.
+        exhausted = terminal_failure
         new_status = "resolved" if resolved else "dead_letter" if exhausted else "action_failed"
         self.connection.execute(
             """
@@ -618,14 +639,14 @@ class TicketStore:
         ticket: Ticket,
         action: Action,
         now: str,
-    ) -> tuple[str, dict[str, object]]:
-        receipt = self.connection.execute(
-            "SELECT result FROM action_receipts WHERE ticket_id = ? AND action_id = ?",
-            (ticket.id, action.id),
-        ).fetchone()
-        if receipt:
-            result = str(receipt["result"])
-            return result, {"message": result, "receipt_reused": True}
+    ) -> dict[str, Any]:
+        """Fire the approved effect exactly once.
+
+        Idempotency, attempt receipts, and dead-lettering are enforced by the
+        provider around this call, so it no longer consults a local receipt
+        table before acting.
+        """
+
         if action.tool_name:
             result_payload = self.registry.execute(
                 ToolContext(
@@ -678,11 +699,8 @@ class TicketStore:
             )
             result = f"Notification {delivery_status}"
             result_payload = {"message": result, "delivery_status": delivery_status}
-        self.connection.execute(
-            "INSERT OR IGNORE INTO action_receipts VALUES (?, ?, ?, ?)",
-            (ticket.id, action.id, result, now),
-        )
-        return result, result_payload
+        result_payload.setdefault("message", result)
+        return result_payload
 
     @staticmethod
     def _legacy_action_for_call(
@@ -831,24 +849,6 @@ class TicketStore:
             )
             for row in rows
         ]
-
-    def _record_attempt(
-        self,
-        ticket_id: str,
-        action_id: str,
-        attempt: int,
-        status: str,
-        error: str | None,
-        created_at: str,
-    ) -> None:
-        self.connection.execute(
-            """
-            INSERT INTO action_attempts
-            (ticket_id, action_id, attempt, status, error, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (ticket_id, action_id, attempt, status, error, created_at),
-        )
 
     def _event(self, ticket_id: str, event_type: str, detail: str, created_at: str) -> None:
         self.connection.execute(

@@ -20,11 +20,24 @@ class ToolValidationError(ValueError):
     pass
 
 
-class ToolRetryableError(RuntimeError):
+class ClassifiedToolError(RuntimeError):
+    """A tool failure that carries the transport classification forward.
+
+    The classification survives the hop from the outbound adapter to the
+    durable effect gateway, so the persisted receipt records why an attempt
+    failed rather than only that it failed.
+    """
+
+    def __init__(self, message: str, *, classification: str | None = None) -> None:
+        self.classification = classification
+        super().__init__(message)
+
+
+class ToolRetryableError(ClassifiedToolError):
     pass
 
 
-class ToolTerminalError(RuntimeError):
+class ToolTerminalError(ClassifiedToolError):
     pass
 
 
@@ -314,9 +327,9 @@ def _send_notification(context: ToolContext, payload: BaseModel) -> dict[str, An
                 idempotency_key=f"{context.ticket.id}:{context.call_id}",
             )
         except OutboundRetryableError as exc:
-            raise ToolRetryableError(str(exc)) from exc
+            raise ToolRetryableError(str(exc), classification=exc.classification) from exc
         except OutboundTerminalError as exc:
-            raise ToolTerminalError(str(exc)) from exc
+            raise ToolTerminalError(str(exc), classification=exc.classification) from exc
         delivery_status = adapter_result.status
         adapter_evidence = adapter_result.model_dump()
         persisted_payload = {

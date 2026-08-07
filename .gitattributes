@@ -2,3 +2,5 @@
 *.png binary
 index.html linguist-detectable=false
 styles.css linguist-detectable=false
+*.whl binary
+*.sha256 text eol=lf

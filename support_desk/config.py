@@ -133,3 +133,9 @@ class Settings(BaseSettings):
     @property
     def sqlite_path(self) -> Path:
         return self.data_dir / "support.sqlite3"
+
+    @property
+    def delivery_sqlite_path(self) -> Path:
+        """Provider-owned durable effect store, kept separate from case data."""
+
+        return self.data_dir / "deliveries.sqlite3"

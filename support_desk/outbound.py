@@ -8,12 +8,18 @@ from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
+
+# REDACTED is re-exported deliberately: tests and callers import it from this
+# module, which is the adapter's public surface for outbound evidence.
+from deliveryguard.redaction import (
+    REDACTED,  # noqa: F401  (public re-export)
+    redact,
+)
 from pydantic import BaseModel
 
 from support_desk.config import Settings
 
 Resolver = Callable[..., list[tuple[Any, ...]]]
-REDACTED = "[REDACTED]"
 METADATA_HOSTS = {
     "metadata",
     "metadata.google.internal",
@@ -156,7 +162,7 @@ class OutboundHTTPAdapter:
                 "network_error", "Outbound destination was unreachable."
             ) from exc
 
-        safe_request = redact_fields(payload, self.settings.request_redacted_fields)
+        safe_request = redact(payload, frozenset(self.settings.request_redacted_fields))
         if response.status_code == 409:
             safe_response = self._response_payload(response, allow_empty=True)
             return OutboundResult(
@@ -167,9 +173,9 @@ class OutboundHTTPAdapter:
                 idempotency_header=self.settings.outbound_idempotency_header,
                 idempotency_key=idempotency_key,
                 request=safe_request,
-                response=redact_fields(
+                response=redact(
                     safe_response,
-                    self.settings.response_redacted_fields,
+                    frozenset(self.settings.response_redacted_fields),
                 ),
             )
         if response.status_code == 429:
@@ -196,7 +202,7 @@ class OutboundHTTPAdapter:
             idempotency_header=self.settings.outbound_idempotency_header,
             idempotency_key=idempotency_key,
             request=safe_request,
-            response=redact_fields(safe_response, self.settings.response_redacted_fields),
+            response=redact(safe_response, frozenset(self.settings.response_redacted_fields)),
         )
 
     def validate_destination(self, url: str) -> str:
@@ -278,13 +284,3 @@ class OutboundHTTPAdapter:
             )
         return payload
 
-
-def redact_fields(value: Any, fields: set[str]) -> Any:
-    if isinstance(value, dict):
-        return {
-            key: REDACTED if key.casefold() in fields else redact_fields(item, fields)
-            for key, item in value.items()
-        }
-    if isinstance(value, list):
-        return [redact_fields(item, fields) for item in value]
-    return value
