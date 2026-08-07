@@ -26,6 +26,17 @@ from pathlib import Path
 
 import pytest
 import uvicorn
+
+# counting_target is imported by module name rather than as
+# `tests.counting_target`. CI invokes bare `pytest`, which does not put the
+# working directory on sys.path the way `python -m pytest` does, so a
+# package-qualified import fails to collect there while passing locally.
+# pytest puts the test file's own directory on sys.path, so this resolves.
+from counting_target import (
+    CountingTargetState,
+    counting_transport,
+    create_counting_target,
+)
 from fastapi.testclient import TestClient
 
 from support_desk.config import Settings
@@ -33,15 +44,6 @@ from support_desk.effects import effect_idempotency_key
 from support_desk.main import create_app
 from support_desk.outbound import OutboundHTTPAdapter
 from support_desk.store import TicketStore
-# Imported by module name, not as `tests.counting_target`. CI invokes bare
-# `pytest`, which does not put the working directory on sys.path the way
-# `python -m pytest` does, so a package-qualified import fails to collect there
-# while passing locally.
-from counting_target import (  # noqa: E402
-    CountingTargetState,
-    counting_transport,
-    create_counting_target,
-)
 
 RENEWAL_SUBJECT = "Renewal failed — service at risk"
 NOTIFICATION_DESTINATION = "tool:send_notification"
