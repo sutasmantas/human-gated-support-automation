@@ -429,3 +429,53 @@ Date: 2026-08-01
 - Exact next cross-portfolio action is P4 PipelineForge in a new
   repository/worktree. ContextSidecar remains complete elsewhere and outside
   this stream.
+
+## Technique-ceiling dossier closure — 2026-08-04
+
+- Research exit gate: `PASS`; Relay experiment/technique-ceiling gate remains
+  `PARTIAL` because R0-R3 were designed but not run.
+- Isolated worktree: `portfolio_demos/worktrees/relay_technique_dossier`.
+- Branch: `agent/relay-technique-dossier`, based on clean Relay `main` commit
+  `9a4c45218fd3205f8169666ed019df828761f88e`.
+- Dossier commit: `18127c582c9a520aa609b3340d8ea134b2a40cc7`.
+- Required artifacts: `TECHNIQUE_TAXONOMY.md`, `EVIDENCE_MATRIX.csv`,
+  `GITHUB_IMPLEMENTATION_AUDIT.md`, `BENCHMARK_DESIGN.md`,
+  `RESEARCH_DECISION.md`, and `docs/EXPERTISE_NOTES.md`.
+- Evidence gate: all eleven systematic research rows are `PASS`; the matrix
+  imports as 17 candidates; iterations 8 and 9 are consecutive no-new-family
+  expansions; local code/test references resolve; `git diff --check` passes.
+- GitHub/component-first result: the existing governed runtime stays core.
+  BFCL, tau/STATE, ToolSandbox and AgentDojo supply reusable case/scorer
+  surfaces; framework rewrites and default multi-agent/memory layers were
+  rejected. LangGraph remains conditional on a real durable branching need.
+- Expertise disposition: central cards **Grade agent workflows on state and
+  policy, not prose** and **Choose agent complexity from task horizon and
+  governance** were added to `UPWORK_EXPERTISE_INDEX.md`. The memory note is
+  intentionally unindexed until a cross-session comparison exists. The
+  untrusted-tool-content note shares Website Assistant's single central card
+  **Treat external content as data, not authority**.
+- Verification in a fresh temporary virtual environment after
+  `pip install '.[dev]'`: `python -m ruff check .` passed and
+  `python -m pytest --cov=support_desk --cov-report=term-missing` reported 39
+  passed with 85% aggregate coverage.
+- Verification diagnostics: the pre-existing host environment initially
+  failed MCP test collection because `httpx2` was absent; installing the
+  repository's declared dependencies in the isolated environment closed it.
+  Docker verification was unavailable because the Docker Desktop Linux daemon
+  was not running; this dossier changes documentation/CSV only and the clean
+  dependency-installed application suite passed.
+- Decision: retain deterministic policy/verification/approval as invariants.
+  R0 measurement-adapter reconciliation is the exact first future work; R1
+  then compares deterministic, direct, plan-first and bounded-replan profiles.
+  R2 security follows R1, and R3 memory remains requirement-triggered.
+- Remaining product limitations are unchanged: no public agent benchmark
+  result, model/provider winner, multi-agent layer, persistent model memory,
+  universal injection prevention, tenant boundary, distributed durable worker,
+  production observability, live OAuth identity provider, or distributed
+  exactly-once guarantee.
+- Scope stopped before: benchmark implementation/execution, provider call,
+  application code, visual polish, merge, push, deployment, or a new project.
+- Exact next cross-portfolio action: complete order item 4, the joint
+  DeliveryGuard + AdapterProof + PipelineForge systematic dossiers, each in an
+  isolated worktree. Do not start Relay R0 from this checkpoint.
+  ContextSidecar is complete elsewhere and remains outside this stream.
