@@ -3,7 +3,7 @@
 Date: 2026-08-04
 
 Purpose: find maintained code before writing substantial custom agent logic.
-This audit ignores licenses by explicit portfolio policy. Popularity is not an
+Popularity is not an
 adoption criterion. Pins are inspection anchors, not dependency upgrades.
 
 ## Existing implementation seam
