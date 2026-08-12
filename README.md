@@ -137,6 +137,14 @@ classify, draft and propose calls; it cannot bypass validation, the tool-step
 budget, approval, receipts or server-side execution policy. Production mode
 rejects the local providers explicitly.
 
+The structured automation path consumes the exact vendored
+`proofgrid-provider-contracts==0.1.0` and
+`proofgrid-structured-output==0.1.0` wheels. Relay retains its domain prompt,
+policies and result mapping; the shared packages own request/response transport,
+normalized provider failures, balanced JSON extraction and Draft 2020-12
+validation. The separate native tool-call planner remains application-owned and
+does not claim support from the non-tool completion package.
+
 ## Connect notifications
 
 Set `SUPPORT_NOTIFICATION_WEBHOOK_URL` and the exact

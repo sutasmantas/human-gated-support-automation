@@ -16,6 +16,8 @@ dependencies = [
   "httpx>=0.28,<1",
   "mcp>=2.0,<3",
   "pydantic-settings>=2.10,<3",
+  "proofgrid-provider-contracts==0.1.0",
+  "proofgrid-structured-output==0.1.0",
   "uvicorn[standard]>=0.35,<1",
 ]
 

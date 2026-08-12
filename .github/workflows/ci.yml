@@ -18,9 +18,16 @@ jobs:
           cache: pip
       - run: python -m pip install --upgrade pip
       - name: Verify the pinned provider wheel
-        run: sha256sum -c deliveryguard-0.2.0.sha256
+        run: |
+          sha256sum -c deliveryguard-0.2.0.sha256
+          sha256sum -c proofgrid_provider_contracts-0.1.0.sha256
+          sha256sum -c proofgrid_structured_output-0.1.0.sha256
         working-directory: vendor
-      - run: python -m pip install vendor/deliveryguard-0.2.0-py3-none-any.whl
+      - name: Install pinned provider wheels
+        run: |
+          python -m pip install vendor/deliveryguard-0.2.0-py3-none-any.whl
+          python -m pip install vendor/proofgrid_provider_contracts-0.1.0-py3-none-any.whl
+          python -m pip install vendor/proofgrid_structured_output-0.1.0-py3-none-any.whl
       - run: pip install ".[dev]"
       - run: ruff check .
       - run: pytest --cov=support_desk --cov-report=term-missing

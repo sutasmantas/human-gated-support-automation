@@ -2,6 +2,14 @@
 
 **Verification:** [claim-to-artifact map and rerun commands](https://sutasmantas.github.io/evidence/#relay) · [machine-readable receipt](https://sutasmantas.github.io/evidence/receipt.json)
 
+**Shared-boundary evidence:** Relay's OpenAI-compatible structured automation
+path no longer owns an ad-hoc HTTP client or direct `json.loads` boundary. It
+consumes exact vendored ProofGrid `0.1.0` provider and structured-output wheels,
+while retaining domain prompting, local policy sources, actions and typed result
+mapping. Clean/defect twins cover fenced and trailing-prose JSON, missing/extra
+fields, wrong types and normalized transport failure. Native tool calls remain
+an explicitly separate application boundary.
+
 Date: 2026-08-04
 
 These notes translate the technique dossier into scoped delivery decisions.
@@ -348,4 +356,3 @@ the legitimate workflows a defense mistakenly refuses.
 - Reason: this decision is indexed once by the joint Website Assistant dossier
   under **Treat external content as data, not authority** to avoid duplicate
   buyer retrieval paths.
-

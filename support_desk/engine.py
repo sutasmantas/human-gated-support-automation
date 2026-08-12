@@ -4,7 +4,8 @@ import json
 import re
 from dataclasses import dataclass
 
-import httpx
+from proofgrid_provider import ChatRequest, Message, OpenAICompatibleProvider
+from proofgrid_structured_output import parse
 
 from support_desk.config import Settings
 from support_desk.schemas import Action, Source, TicketCreate
@@ -53,6 +54,29 @@ POLICIES = [
         score=0.95,
     ),
 ]
+
+AUTOMATION_SCHEMA = {
+    "type": "object",
+    "required": [
+        "intent",
+        "priority",
+        "sentiment",
+        "route",
+        "confidence",
+        "risk_reason",
+        "draft",
+    ],
+    "additionalProperties": False,
+    "properties": {
+        "intent": {"type": "string"},
+        "priority": {"type": "string"},
+        "sentiment": {"type": "string"},
+        "route": {"type": "string"},
+        "confidence": {"type": "number"},
+        "risk_reason": {"type": "string"},
+        "draft": {"type": "string"},
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -212,32 +236,30 @@ class OpenAIAutomation(LocalAutomation):
             },
             "policies": [source.model_dump() for source in base.sources],
         }
-        headers = {"Content-Type": "application/json"}
-        if self.settings.llm_api_key:
-            headers["Authorization"] = f"Bearer {self.settings.llm_api_key}"
-        response = httpx.post(
-            f"{self.settings.llm_base_url.rstrip('/')}/chat/completions",
-            headers=headers,
-            timeout=45,
-            json={
-                "model": self.settings.llm_model,
-                "temperature": 0,
-                "response_format": {"type": "json_object"},
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": (
+        provider = OpenAICompatibleProvider(
+            self.settings.llm_base_url,
+            self.settings.llm_api_key,
+        )
+        completion = provider.complete(
+            ChatRequest(
+                messages=(
+                    Message(
+                        "system",
+                        (
                             "Return JSON with intent, priority, sentiment, route, confidence, "
                             "risk_reason and draft. Ground the draft only in supplied policies. "
                             "Never claim an action has completed."
                         ),
-                    },
-                    {"role": "user", "content": json.dumps(prompt)},
-                ],
-            },
+                    ),
+                    Message("user", json.dumps(prompt)),
+                ),
+                model=self.settings.llm_model,
+                temperature=0,
+                response_format={"type": "json_object"},
+            ),
+            timeout=45,
         )
-        response.raise_for_status()
-        payload = json.loads(response.json()["choices"][0]["message"]["content"])
+        payload = parse(completion.text, AUTOMATION_SCHEMA)
         return AutomationResult(
             intent=str(payload["intent"]),
             priority=str(payload["priority"]),
