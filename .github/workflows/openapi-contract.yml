@@ -10,9 +10,9 @@ permissions:
 
 jobs:
   openapi-contract:
-    uses: sutasmantas/api-adapter-conformance-harness/.github/workflows/openapi-contract.yml@914999a33a4808424ebd9a2a17c0492816ec5a73
+    uses: sutasmantas/api-adapter-conformance-harness/.github/workflows/openapi-contract.yml@590694c6b252ea56572a352d7608d8da92a8f6f8
     with:
-      adapterproof-ref: 914999a33a4808424ebd9a2a17c0492816ec5a73
+      adapterproof-ref: 590694c6b252ea56572a352d7608d8da92a8f6f8
       config: adapterproof.openapi.json
       consumer-install-arguments: -e ".[dev]"
       python-version: "3.11"
