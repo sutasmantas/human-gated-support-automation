@@ -1,5 +1,7 @@
 # Relay — AI support operations
 
+**Verification:** [claim-to-artifact map and rerun commands](https://sutasmantas.github.io/evidence/#relay) · [machine-readable receipt](https://sutasmantas.github.io/evidence/receipt.json)
+
 [![CI](https://github.com/sutasmantas/human-gated-support-automation/actions/workflows/ci.yml/badge.svg)](https://github.com/sutasmantas/human-gated-support-automation/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![MIT license](https://img.shields.io/badge/license-MIT-14B8A6)](LICENSE)

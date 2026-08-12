@@ -1,5 +1,7 @@
 # Relay expertise notes
 
+**Verification:** [claim-to-artifact map and rerun commands](https://sutasmantas.github.io/evidence/#relay) · [machine-readable receipt](https://sutasmantas.github.io/evidence/receipt.json)
+
 Date: 2026-08-04
 
 These notes translate the technique dossier into scoped delivery decisions.
