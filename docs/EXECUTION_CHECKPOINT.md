@@ -28,9 +28,14 @@
   The same provider-owned connection-lifecycle issue also produces the existing
   pytest resource warnings. This cleanup does not alter that code path; hosted
   Linux CI remains the publication gate.
-- Publication gate: pending.
-- Exact next action: commit, verify the clean commit, then publish only by
-  verified fast-forward to public `main` and record hosted workflow results.
+- Implementation publication: PASS — `110b071dcc024b9aba98a9cce31dcfc6a6df1832`
+  was pushed by fast-forward from public base `851ee46add06aa2d609358a057d44092678105d3`.
+- Hosted gate at the implementation commit: PASS — CI `31707429975`,
+  AdapterProof OpenAPI contract `31707430560`, and browser deployment
+  `31707429958` all completed successfully.
+- Exact next action: none for the resolver boundary. DeliveryGuard's
+  Windows-only SQLite handle cleanup remains a separate provider-lifecycle
+  issue and is not hidden by this result.
 
 ## Shared OpenAPI consumer slice — 2026-08-06
 
