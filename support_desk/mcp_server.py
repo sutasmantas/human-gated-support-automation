@@ -5,6 +5,7 @@ import secrets
 from typing import Annotated, Literal
 
 import anyio
+from deliveryguard.secrets import EnvironmentSecretResolver, SecretResolutionError
 from mcp.server import MCPServer
 from mcp.server.auth.provider import AccessToken, TokenVerifier
 from mcp.server.auth.settings import AuthSettings
@@ -14,7 +15,6 @@ from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field
 
 from support_desk.config import Settings
 from support_desk.engine import LocalAutomation, create_automation
-from support_desk.outbound import EnvironmentSecretResolver, OutboundTerminalError
 from support_desk.schemas import (
     Ticket,
     TicketCreate,
@@ -177,7 +177,7 @@ class StaticBearerVerifier(TokenVerifier):
     async def verify_token(self, token: str) -> AccessToken | None:
         try:
             expected = self.resolver.resolve(self.settings.mcp_auth_token_ref)
-        except OutboundTerminalError:
+        except SecretResolutionError:
             return None
         if not secrets.compare_digest(token, expected):
             return None

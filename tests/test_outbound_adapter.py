@@ -90,6 +90,27 @@ def test_success_uses_idempotency_secret_reference_and_redacts_fields(
 
 
 @pytest.mark.parametrize(
+    "secret_ref",
+    ("not-an-env-reference", "env:missing_lowercase", "env:MISSING_RELAY_TOKEN"),
+)
+def test_shared_secret_resolver_failure_is_terminal_and_does_not_send(
+    tmp_path: Path,
+    secret_ref: str,
+) -> None:
+    adapter = OutboundHTTPAdapter(
+        settings(tmp_path, outbound_secret_ref=secret_ref),
+        transport=httpx.MockTransport(lambda request: pytest.fail("request must not be sent")),
+        resolver=resolver_for("93.184.216.34"),
+    )
+
+    with pytest.raises(OutboundTerminalError) as raised:
+        adapter.send({"ticket_id": "CS-1"}, idempotency_key="safe-key")
+
+    assert raised.value.classification == "secret_resolution_error"
+    assert secret_ref not in str(raised.value)
+
+
+@pytest.mark.parametrize(
     ("scenario", "expected_status", "expected_classification"),
     [
         ("success", "delivered", "success"),

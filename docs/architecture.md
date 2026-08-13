@@ -80,6 +80,10 @@ Before sending, it enforces the exact host allowlist, URL/DNS safety policy,
 separate connect/read timeouts, idempotency header, secret-reference resolution
 and configured request/response redaction. Timeout/network/429/5xx failures are
 retryable; other 4xx, redirect and malformed-response failures are terminal.
+Environment-secret syntax and lookup are owned by the pinned DeliveryGuard
+provider. Relay translates provider resolution failures into its durable
+configuration-error vocabulary; destination security and redaction remain
+Relay-owned because DeliveryGuard does not implement those policies.
 
 After `SUPPORT_MAX_ACTION_ATTEMPTS`, the case moves to dead-letter review.
 

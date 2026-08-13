@@ -64,6 +64,7 @@ CLASSIFICATION_BY_NAME: dict[str, Classification] = {
     "unsafe_destination": Classification.CONFIGURATION_ERROR,
     "invalid_secret_reference": Classification.CONFIGURATION_ERROR,
     "missing_secret": Classification.CONFIGURATION_ERROR,
+    "secret_resolution_error": Classification.CONFIGURATION_ERROR,
 }
 
 

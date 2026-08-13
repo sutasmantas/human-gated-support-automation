@@ -1,5 +1,37 @@
 # Relay execution checkpoint
 
+## Shared secret-resolver cleanup — 2026-08-13
+
+- Branch: `agent/relay-secret-resolver`
+- Isolated worktree: `portfolio_demos/worktrees/relay_secret_resolver`
+- Clean public base: `851ee46add06aa2d609358a057d44092678105d3`
+- Decision: delete Relay's duplicated environment-variable validation and
+  lookup; consume `deliveryguard.secrets.EnvironmentSecretResolver` from the
+  already pinned and hash-verified DeliveryGuard 0.2.0 wheel.
+- Preserved boundary: Relay continues to own destination allowlisting,
+  SSRF-oriented URL/DNS checks, metadata blocking, bounded timeouts,
+  idempotency headers and request/response redaction. Replacing that adapter
+  would be a security regression because DeliveryGuard does not own those
+  policies.
+- Error boundary: DeliveryGuard's `SecretResolutionError` becomes Relay's
+  terminal `secret_resolution_error`, mapped to `CONFIGURATION_ERROR`; the
+  error does not echo the configured reference or resolved value.
+- Local gate:
+  - `python -m ruff check .` — PASS;
+  - `pytest tests/test_outbound_adapter.py tests/test_mcp_server.py -q` — PASS,
+    22 tests;
+  - `pytest --cov=support_desk --cov-report=term-missing` — PASS, 57 tests and
+    87% aggregate coverage on Python 3.11;
+  - `git diff --check` — PASS.
+- Platform note: `python -m support_desk.demo_agent` completes its workflow but
+  Windows cannot remove DeliveryGuard's still-open `deliveries.sqlite3` handle.
+  The same provider-owned connection-lifecycle issue also produces the existing
+  pytest resource warnings. This cleanup does not alter that code path; hosted
+  Linux CI remains the publication gate.
+- Publication gate: pending.
+- Exact next action: commit, verify the clean commit, then publish only by
+  verified fast-forward to public `main` and record hosted workflow results.
+
 ## Shared OpenAPI consumer slice — 2026-08-06
 
 - branch: `agent/toolbox-api-verification`

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ipaddress
-import os
 import socket
 from collections.abc import Callable
 from typing import Any
@@ -15,6 +14,7 @@ from deliveryguard.redaction import (
     REDACTED,  # noqa: F401  (public re-export)
     redact,
 )
+from deliveryguard.secrets import EnvironmentSecretResolver, SecretResolutionError
 from pydantic import BaseModel
 
 from support_desk.config import Settings
@@ -68,28 +68,6 @@ class OutboundDescription(BaseModel):
     response_redacted_fields: list[str]
 
 
-class EnvironmentSecretResolver:
-    def resolve(self, reference: str) -> str:
-        if not reference.startswith("env:"):
-            raise OutboundTerminalError(
-                "invalid_secret_reference",
-                "Only env:NAME secret references are supported.",
-            )
-        variable = reference.removeprefix("env:")
-        if not variable or not variable.replace("_", "").isalnum():
-            raise OutboundTerminalError(
-                "invalid_secret_reference",
-                "Secret environment variable name is invalid.",
-            )
-        value = os.environ.get(variable)
-        if not value:
-            raise OutboundTerminalError(
-                "missing_secret",
-                f"Secret reference env:{variable} is not available.",
-            )
-        return value
-
-
 class OutboundHTTPAdapter:
     name = "generic-rest-webhook"
 
@@ -138,7 +116,13 @@ class OutboundHTTPAdapter:
             self.settings.outbound_idempotency_header: idempotency_key,
         }
         if self.settings.outbound_secret_ref:
-            secret = self.secret_resolver.resolve(self.settings.outbound_secret_ref)
+            try:
+                secret = self.secret_resolver.resolve(self.settings.outbound_secret_ref)
+            except SecretResolutionError as exc:
+                raise OutboundTerminalError(
+                    "secret_resolution_error",
+                    "The configured outbound secret could not be resolved.",
+                ) from exc
             headers[self.settings.outbound_secret_header] = f"Bearer {secret}"
 
         timeout = httpx.Timeout(
@@ -283,4 +267,3 @@ class OutboundHTTPAdapter:
                 "malformed_response", "Outbound JSON response must be an object."
             )
         return payload
-
